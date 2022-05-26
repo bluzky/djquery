@@ -1,0 +1,26 @@
+{
+    "manifest_version": 2,
+    "name": "Djquery",
+    "version": "1.0",
+
+    "description": "Simple query command for Django Admin",
+
+    "icons": {
+        "48": "static/djquery-48.png",
+        "48": "static/djquery-96.png"
+    },
+
+    "content_scripts": [
+        {
+        "matches": ["*://*djadmin.onpoint.vn/*"],
+        "js": ["js/index.js"],
+        "css": ["css/style.css"],
+        "matches": [
+            "https://dev-djadmin.onpoint.vn/*",
+            "https://djadmin.onpoint.vn/*",
+            "https://stg-djadmin.onpoint.vn/*",
+            "https://uat-djadmin.onpoint.vn/*"
+        ]
+    }
+    ]
+}
