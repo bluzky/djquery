@@ -15,7 +15,8 @@ require("esbuild")
     plugins: [
       sassPlugin(),
       sveltePlugin({
-        compilerOptions: { customElement: true },
+        // compilerOptions: { customElement: true },
+        mainFields: ["svelte", "browser", "module", "main"],
       }),
       copy({
         // this is equal to process.cwd(), which means we use cwd path as base path to resolve `to` path
