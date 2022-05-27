@@ -4,18 +4,13 @@ const { copy } = require("esbuild-plugin-copy");
 
 require("esbuild")
   .build({
-    entryPoints: [
-      "src/js/index.js",
-      // "src/js/background.js",
-      "src/css/style.scss",
-    ],
+    entryPoints: ["src/js/index.js", "src/css/style.scss"],
     bundle: true,
     watch: true,
     outdir: "dist",
     plugins: [
       sassPlugin(),
       sveltePlugin({
-        // compilerOptions: { customElement: true },
         mainFields: ["svelte", "browser", "module", "main"],
       }),
       copy({

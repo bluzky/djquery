@@ -1,29 +1,26 @@
-function parseQuery(query) {
-  const [scope, condition_exp] = parseScope(query);
-
-  if (!scope) {
-    return {
-      error: "No scope specified",
-    };
-  }
+// Parse query with syntax
+// `from scope where field = value and field2 = value2`
+// Using current scope
+// `where field = value and field2 = value2`
+// Result expect
+// {scope: scope, conditions: [{field: field, operator: operator, value: value}]}
+function parseQuery(command) {
+  const [scope, condition_exp] = parseScope(command);
 
   const conditions = parseConditions(condition_exp);
-  const errorCondition = conditions.find((item) => item.error != null);
-  if (errorCondition) {
-    return {
-      error: errorCondition.error,
-    };
-  }
+  const error = conditions.find((item) => item.error != null);
 
-  return buildUrl(
-    scope,
-    conditions.map((item) => item.expression)
+  return (
+    error || {
+      scope: scope,
+      conditions: conditions,
+    }
   );
 }
 
 function parseScope(query) {
   // with condition
-  const rs1 = /from\s+(?<scope>.+?)\s+where\s+(?<conditions>.+)/.exec(query);
+  const rs1 = /from\s+(?<scope>.+?)\s+(?<conditions>where.+)/.exec(query);
   if (rs1) {
     return [rs1.groups.scope, rs1.groups.conditions];
   }
@@ -33,34 +30,42 @@ function parseScope(query) {
 
   if (rs) return [rs.groups.scope, ""];
 
-  return [null, null];
+  return [null, query];
 }
 
 function parseConditions(expression) {
-  const parts = expression.split(" and ").map((text) => text.trim());
-  return parts.map((text) => parseCondition(text));
+  const rs = /where\s+(.+)/.exec(expression);
+  if (rs) {
+    return rs[1]
+      .split(" and ")
+      .map((text) => text.trim())
+      .map((text) => parseCondition(text));
+  } else {
+    return { error: "invalid query condition" };
+  }
 }
 
 function parseCondition(expression) {
   const rs =
-    /^(?<field>[a-zA-Z0-9_]+?) +(?<operator>=|\<\>|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
+    /^(?<field>[a-zA-Z0-9_]+?)\s*(?<operator>=|\<\>|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
       expression
     );
   if (rs) {
-    return {
-      expression: rs.groups,
-      error: null,
-    };
+    return rs.groups;
   }
 
   return {
-    expression: null,
     error: `Bad expression \"${expression}\"`,
   };
 }
 
-function buildUrl(scope, conditions) {
-  const path = `/${scope.replace(/\./g, "/")}-/`;
+// convert scope and conditions to path and query
+function buildUrlQuery({ scope, conditions }) {
+  let path;
+  if (scope) {
+    path = `/${mapAlias(scope)}-/`;
+  }
+
   const conditionQuery = conditions.map((condition) =>
     buildConditionQuery(condition)
   );
@@ -78,6 +83,13 @@ function buildUrl(scope, conditions) {
       query: query,
     };
   }
+}
+
+function mapAlias(scope) {
+  const parts = scope.split(".");
+  const aliases = JSON.parse(localStorage.getItem("djquery-aliases") || "{}");
+  parts[0] = aliases[parts[0]] || parts[0];
+  return parts.join("/");
 }
 
 // exact
@@ -114,14 +126,18 @@ function buildUrl(scope, conditions) {
 // iregex
 
 function buildConditionQuery(condition) {
-  console.log(condition);
   const { field: field, operator: operator, value: value } = condition;
-  let result = [];
-  switch (operator) {
+  let op,
+    val = value,
+    result = [];
+  switch (operator.trim()) {
     case "=":
+      if (value == "true") val = "True";
+      if (value == "false") val = "False";
+
       result = {
         field: field,
-        value: value,
+        value: val,
       };
       break;
     case "is null":
@@ -145,7 +161,7 @@ function buildConditionQuery(condition) {
       };
       break;
     case "like":
-      let [op, val] = parseTextSearch(operator, value);
+      [op, val] = parseTextSearch(operator, value);
       result = {
         field: `${field}__${op}`,
         value: val,
@@ -153,10 +169,10 @@ function buildConditionQuery(condition) {
       break;
 
     case "ilike":
-      let [op1, val1] = parseTextSearch(operator, value);
+      [op, val] = parseTextSearch(operator, value);
       result = {
-        field: `${field}__${op1}`,
-        value: val1,
+        field: `${field}__${op}`,
+        value: val,
       };
       break;
     default:
@@ -165,10 +181,14 @@ function buildConditionQuery(condition) {
   return result;
 }
 
+// mapping search text expression to djadmin operator
+// contains/icontains, startswith/istartswith, endswith/iendswith
+// without %, use `exact` oeprator
 function parseTextSearch(operator, value) {
   value = value.replace(/'/g, "");
   let rs = /^%(.+)%$/.exec(value);
   let search = null;
+
   if (rs) {
     search = "contains";
     value = rs[1];
@@ -195,4 +215,4 @@ function parseTextSearch(operator, value) {
   return [search, value];
 }
 
-export { parseQuery };
+export { parseQuery, buildUrlQuery };

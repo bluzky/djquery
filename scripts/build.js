@@ -4,16 +4,14 @@ const { copy } = require("esbuild-plugin-copy");
 
 require("esbuild")
   .build({
-    entryPoints: [
-      "src/js/index.js",
-      // "src/js/background.js",
-      "src/css/style.scss",
-    ],
+    entryPoints: ["src/js/index.js", "src/css/style.scss"],
     bundle: true,
     outdir: "dist",
     plugins: [
       sassPlugin(),
-      sveltePlugin(),
+      sveltePlugin({
+        mainFields: ["svelte", "browser", "module", "main"],
+      }),
       copy({
         // this is equal to process.cwd(), which means we use cwd path as base path to resolve `to` path
         // if not specified, this plugin uses ESBuild.build outdir/outfile options as base path.

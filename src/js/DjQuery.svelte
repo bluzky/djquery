@@ -2,20 +2,26 @@
 </style>
 
 <script>
-import { parseQuery } from "./parser.js";
+import { parseCommand, execCommand } from "./command.js";
 let textarea;
-let errorMessage;
+let message;
+let messageType;
 
 function onKeyUp(e) {
   if (e.key === "Enter" || e.keyCode == 13) {
-    const query = parseQuery(textarea.value);
-    if (query.error) {
-      errorMessage = query.error;
+    const command = parseCommand(textarea.value);
+    if (command.error) {
+      message = command.error;
+      messageType = "error";
     } else {
-      const url = new URL(window.location.href);
-      url.pathname = query.path;
-      url.search = `?${query.query}`;
-      window.location.href = url.href;
+      const rs = execCommand(command);
+      if (rs.error) {
+        message = rs.error;
+        messageType = "error";
+      } else {
+        message = rs.message || "Success";
+        messageType = "success";
+      }
     }
   }
 }
@@ -30,8 +36,8 @@ function onKeyUp(e) {
         rows="4"
         bind:this="{textarea}"
         on:keyup="{onKeyUp}"></textarea>
-      {#if errorMessage}
-        <span class="query-error">{errorMessage}</span>
+      {#if message}
+        <span class="query-{messageType}">{message}</span>
       {/if}
     </div>
   </div>
