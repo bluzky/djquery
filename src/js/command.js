@@ -5,16 +5,30 @@ import { parseQuery, buildUrlQuery } from "./query.js";
 function parseCommand(command) {
   // get command type
   const commandType = parseCommandType(command);
-
+  let result;
   switch (commandType) {
     case "query":
-      return { commandType: commandType, args: parseQuery(command) };
+      result = parseQuery(command);
+      break;
     case "alias":
-      return { commandType: commandType, args: parseAlias(command) };
+      result = parseAlias(command);
+      break;
     default:
-      return {
+      result = {
         error: "Bad command",
       };
+  }
+
+  if (result.error) {
+    return {
+      commandType: commandType,
+      error: result.error,
+    };
+  } else {
+    return {
+      commandType: commandType,
+      args: result,
+    };
   }
 }
 
@@ -84,10 +98,14 @@ function execCommand({ commandType, args }) {
         const url = new URL(window.location.href);
         if (path) url.pathname = path;
 
-        if (query) url.search = `?${query}`;
+        if (query) {
+          url.search = `?${query}`;
+        } else {
+          url.search = "";
+        }
 
         window.location.href = url.href;
-        return { message: "Loading query" };
+        return { message: "Query running ..." };
       }
     default:
       return { error: "Bad command" };

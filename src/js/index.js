@@ -20,7 +20,7 @@ function injectHtml() {
 // binding hotkey to toggle query input
 function bindHotkey() {
   document.addEventListener("keydown", function (event) {
-    if (event.ctrlKey && event.key === "j") {
+    if (event.ctrlKey && event.key === "k") {
       MicroModal.show("query-modal");
     }
   });

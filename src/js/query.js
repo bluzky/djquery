@@ -8,14 +8,14 @@ function parseQuery(command) {
   const [scope, condition_exp] = parseScope(command);
 
   const conditions = parseConditions(condition_exp);
-  const error = conditions.find((item) => item.error != null);
-
-  return (
-    error || {
+  if (conditions.error) {
+    return conditions;
+  } else {
+    return {
       scope: scope,
       conditions: conditions,
-    }
-  );
+    };
+  }
 }
 
 function parseScope(query) {
@@ -34,6 +34,10 @@ function parseScope(query) {
 }
 
 function parseConditions(expression) {
+  // empty conditions
+  if (expression.trim() == "") return [];
+
+  // with where conditions
   const rs = /where\s+(.+)/.exec(expression);
   if (rs) {
     return rs[1]
@@ -47,7 +51,7 @@ function parseConditions(expression) {
 
 function parseCondition(expression) {
   const rs =
-    /^(?<field>[a-zA-Z0-9_]+?)\s*(?<operator>=|\>|\>=|\<|\<=|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
+    /^(?<field>[a-zA-Z0-9_\.]+?)\s*(?<operator>=|\>|\>=|\<|\<=|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
       expression
     );
   if (rs) {
@@ -132,7 +136,8 @@ const operatorMap = {
   "<=": "lte",
 };
 function buildConditionQuery(condition) {
-  const { field: field, operator: operator, value: value } = condition;
+  let { field: field, operator: operator, value: value } = condition;
+  field = field.replace(/\./g, "__");
   let op,
     val = value,
     result = [];
