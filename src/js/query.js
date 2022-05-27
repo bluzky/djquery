@@ -47,7 +47,7 @@ function parseConditions(expression) {
 
 function parseCondition(expression) {
   const rs =
-    /^(?<field>[a-zA-Z0-9_]+?)\s*(?<operator>=|\<\>|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
+    /^(?<field>[a-zA-Z0-9_]+?)\s*(?<operator>=|\>|\>=|\<|\<=|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
       expression
     );
   if (rs) {
@@ -124,7 +124,13 @@ function mapAlias(scope) {
 // isnull
 // regex
 // iregex
-
+const operatorMap = {
+  "=": "exact",
+  ">": "gt",
+  ">=": "gte",
+  "<": "lt",
+  "<=": "lte",
+};
 function buildConditionQuery(condition) {
   const { field: field, operator: operator, value: value } = condition;
   let op,
@@ -140,6 +146,7 @@ function buildConditionQuery(condition) {
         value: val,
       };
       break;
+
     case "is null":
       result = {
         field: `${field}__isnull`,
@@ -176,7 +183,12 @@ function buildConditionQuery(condition) {
       };
       break;
     default:
-      result = { error: `Operator ${operator} is not supported` };
+      op = operatorMap[operator];
+      if (op) {
+        result = { field: `${field}__${op}`, value: value };
+      } else {
+        result = { error: `Operator ${operator} is not supported` };
+      }
   }
   return result;
 }
