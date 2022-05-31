@@ -5,7 +5,7 @@
 // Result expect
 // {scope: scope, conditions: [{field: field, operator: operator, value: value}]}
 function parseQuery(command) {
-  const [scope, condition_exp] = parseScope(command);
+  const [scope, condition_exp] = parseScope(command.trim());
 
   const conditions = parseConditions(condition_exp);
   if (conditions.error) {
@@ -20,7 +20,7 @@ function parseQuery(command) {
 
 function parseScope(query) {
   // with condition
-  const rs1 = /from\s+(?<scope>.+?)\s+(?<conditions>where.+)/.exec(query);
+  const rs1 = /from\s+(?<scope>.+?)\s+(?<conditions>.+)/.exec(query);
   if (rs1) {
     return [rs1.groups.scope, rs1.groups.conditions];
   }
@@ -34,24 +34,21 @@ function parseScope(query) {
 }
 
 function parseConditions(expression) {
+  const text = expression.replace(/where\s*/, "").trim();
   // empty conditions
-  if (expression.trim() == "") return [];
+  if (text == "") return [];
 
   // with where conditions
-  const rs = /where\s+(.+)/.exec(expression);
-  if (rs) {
-    return rs[1]
-      .split(" and ")
-      .map((text) => text.trim())
-      .map((text) => parseCondition(text));
-  } else {
-    return { error: "invalid query condition" };
-  }
+
+  return text
+    .split(" and ")
+    .map((text) => text.trim())
+    .map((text) => parseCondition(text));
 }
 
 function parseCondition(expression) {
   const rs =
-    /^(?<field>[a-zA-Z0-9_\.]+?)\s*(?<operator>=|\>|\>=|\<|\<=|is not null|is null|ilike|like)\s*(?<value>.*)/.exec(
+    /^(?<field>[a-zA-Z0-9_\.]+?)\s*(?<operator>=|\>|\>=|\<|\<=|is not null|is null|ilike|like|in)\s*(?<value>.*)/.exec(
       expression
     );
   if (rs) {
@@ -67,7 +64,7 @@ function parseCondition(expression) {
 function buildUrlQuery({ scope, conditions }) {
   let path;
   if (scope) {
-    path = `/${mapAlias(scope)}-/`;
+    path = `/${mapAlias(scope)}-/`.replace(/_/g, "");
   }
 
   const conditionQuery = conditions.map((condition) =>
@@ -232,4 +229,101 @@ function parseTextSearch(operator, value) {
   return [search, value];
 }
 
-export { parseQuery, buildUrlQuery };
+function urlToQuery(url) {
+  const conditions = urlToConditions(url);
+
+  let query;
+  if (conditions.length > 0) {
+    query = `${conditions.join(" and ")}`;
+  }
+  return query;
+}
+
+function urlToConditions(url) {
+  return url.search
+    .replace("?", "")
+    .split("&")
+    .map((part) => decodeCondition(part))
+    .filter((item) => item != null);
+}
+
+function decodeCondition(text) {
+  if (text == "") return null;
+  const [field, value] = text.split("=");
+  const parts = field.split("__");
+  let operator,
+    fieldName,
+    val = value;
+
+  if (parts.length == 1) {
+    operator = "exact";
+    fieldName = parts[0];
+  } else {
+    operator = parts.pop();
+    fieldName = parts.join(".");
+  }
+
+  switch (operator) {
+    case "exact":
+      if (value == "True") val = "true";
+      if (value == "False") val = "false";
+
+      operator = "=";
+      break;
+
+    case "isnull":
+      val = "";
+      if (value == "True") {
+        operator = "is null";
+      } else {
+        operator = "is not null";
+      }
+      break;
+
+    case "in":
+      operator = "in";
+      val = `(${value})`;
+      break;
+
+    case "startswith":
+      operator = "like";
+      val = `%${value}`;
+      break;
+
+    case "istartswith":
+      operator = "ilike";
+      val = `%${value}`;
+      break;
+
+    case "endswith":
+      operator = "like";
+      val = `${value}%`;
+      break;
+
+    case "iendswith":
+      operator = "ilike";
+      val = `${value}%`;
+      break;
+
+    case "contains":
+      operator = "like";
+      val = `%${value}%`;
+      break;
+
+    case "icontains":
+      operator = "ilike";
+      val = `%${value}%`;
+      break;
+
+    default:
+      operator = Object.keys(operatorMap).find(
+        (key) => operatorMap[key] == operator
+      );
+      if (!operator) {
+        operator = "=";
+      }
+  }
+  return `${fieldName} ${operator} ${val}`.trim();
+}
+
+export { parseQuery, buildUrlQuery, urlToQuery };

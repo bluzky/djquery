@@ -42,8 +42,8 @@ const commandTypeMap = {
 
 function parseCommandType(command) {
   const rs = /^(\w+)/.exec(command);
-  if (rs && commandTypeMap[rs[1]]) {
-    return commandTypeMap[rs[1]];
+  if (rs) {
+    return commandTypeMap[rs[1]] || "query";
   }
 }
 

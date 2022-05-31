@@ -2,10 +2,17 @@
 </style>
 
 <script>
+import { onMount } from "svelte";
 import { parseCommand, execCommand } from "./command.js";
+import { urlToQuery } from "./query.js";
 let textarea;
+let queryString;
 let message;
 let messageType;
+
+onMount(() => {
+  queryString = urlToQuery(window.location);
+});
 
 function onKeyUp(e) {
   if (e.key === "Enter" || e.keyCode == 13) {
@@ -34,6 +41,7 @@ function onKeyUp(e) {
         id="query-input"
         placeholder="from scope.table where column_a = null"
         rows="4"
+        bind:value="{queryString}"
         bind:this="{textarea}"
         on:keyup="{onKeyUp}"></textarea>
       {#if message}
